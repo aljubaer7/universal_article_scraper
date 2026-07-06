@@ -21,8 +21,9 @@ def fetch_url(url, timeout=10):
                 tag.decompose()
             return soup
         else:
+            # try selenium
             return None
-    except:
+    except: # count error
         return None
     
 def get_saved_soup(url):
@@ -31,7 +32,7 @@ def get_saved_soup(url):
     file_name = cursor.fetchall()
     if file_name:
         file_name = file_name[0][0]
-        path = r'saved soups'
+        path = r'saved_soups'
         file_path = os.path.join(path, file_name)
         
         with open(file_path, 'r', encoding='utf-8') as f:
