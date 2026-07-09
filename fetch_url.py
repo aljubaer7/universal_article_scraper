@@ -1,6 +1,9 @@
 import requests
 from bs4 import BeautifulSoup
 import os
+import pandas as pd
+import uuid
+
 import sqlite3
 conn = sqlite3.connect(r'data\metadata.db')
 cursor = conn.cursor()
@@ -10,7 +13,7 @@ with open(r'data\headers.txt', 'r') as f:
 avoid_tags = ['script', 'noscript', 'style', 'meta', 'link', 'aside', 'footer', 'img', 'cite', 'button', 'iframe', 'figcaption']
 
 
-def fetch_url(url, timeout=10):
+def get_soup(url, timeout=10):
     session = requests.Session()
     session.headers.update(headers)
     try:
@@ -26,8 +29,20 @@ def fetch_url(url, timeout=10):
     except: # count error
         return None
     
+def save_soup(soup, url):
+    file_name = f'{uuid.uuid4().hex}.html'
+    path = r'C:\Users\Juve\Documents\dataset_builder\saved_soups'
+    file_path = os.path.join(path, file_name)
+    
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(str(soup))
+        
+    df = pd.DataFrame([{'url': url, 'file_name': file_name}])
+    df.to_sql('saved_soup', conn, if_exists='append', index=False)
+    conn.commit()
+    
 def get_saved_soup(url):
-    query = f"select file_name from url_html_encoded where url='{url}'"
+    query = f"select file_name from saved_soup where url='{url}'"
     cursor.execute(query)
     file_name = cursor.fetchall()
     if file_name:

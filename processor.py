@@ -1,19 +1,17 @@
 import re
+import uuid
+import json
 import statistics
 import numpy as np
 import pandas as pd
-from collections import Counter
 from datetime import datetime
-import uuid
-import json
-
-import sqlite3
-conn = sqlite3.connect(r'data\metadata.db')
-table_name = 'meta_4_a'
+from collections import Counter
 
 import spacy
 nlp = spacy.load('en_core_web_lg')
 
+import sqlite3
+conn = sqlite3.connect(r'data\metadata.db')
 
 
 # class > TextValidator
@@ -28,12 +26,14 @@ class TextValidator:
             text_len: int = sum(line_lens) # total length of text across all lines
             avg: float = statistics.mean(line_lens) # average text per line
             max_len_p: float = round(((max(line_lens) / text_len) * 100), 2) # text percentage of largest line
-            end_punct: int = sum([0 if not line[-1] in ('.', '!', '?') else 1 for line in self.text_lines])
-            end_punct_p: float = round(((end_punct / lines) * 100), 2) # end punctuation percentage
+            # end_punct: int = sum([0 if not line[-1] in ('.', '!', '?') else 1 for line in self.text_lines])
+            # end_punct_p: float = round(((end_punct / lines) * 100), 2) # end punctuation percentage
             text = ' '.join(self.text_lines).split()
-            three_dot = sum([1 if '...' in word else 0 for word in text])
+            three_dot = text.count('...')
+            colon = text.count(':')
 
-            metadata = {'lines': lines, 'text_len': text_len, 'avg_len': avg, 'max_len_p': max_len_p, 'end_punct_p': end_punct_p, 'three_dot': three_dot}
+            metadata = {'lines': lines, 'text_len': text_len, 'avg_len': avg, 'max_len_p': max_len_p,
+                        'three_dot': three_dot, 'colon': colon}
                         # 'below_avg_p': below_avg_p, 'first_q': q1, 'sec_q': q2, 'third_q': q3}
             return metadata
             
@@ -45,8 +45,8 @@ class TextValidator:
                         metadata['text_len'] > 1000 and
                         metadata['avg_len'] > 100 and
                         metadata['max_len_p'] < 40 and
-                        metadata['end_punct_p'] > 40 and
-                        metadata['three_dot'] < 3
+                        metadata['three_dot'] < 3 and
+                        metadata['colon'] < 15
                     )
         else:
             return False
@@ -227,15 +227,15 @@ class SearchByAttributes:
                     text_similarity: float = self.vector_similarity(text_lines, text_vector)
                     if text_similarity < 0.998:
                         # sentence scoring
-                        # pred_score = validator.predict_sentence_score()
                         sentence_score = validator.sentence_score()
+                        if sentence_score > 0.60:
                         
-                        metadata = {'tag': tag, 'attribute': item}
-                        metadata.update(validator.create_metadata())
-                        metadata.update({'sentence_score': sentence_score})
+                            metadata = {'tag': tag, 'attribute': item}
+                            metadata.update(validator.create_metadata())
+                            metadata.update({'sentence_score': sentence_score})
 
-                        dfr = pd.DataFrame([metadata])
-                        df = pd.concat([df, dfr], ignore_index=True)
+                            dfr = pd.DataFrame([metadata])
+                            df = pd.concat([df, dfr], ignore_index=True)
         if len(df) > 0:
             df = df.sort_values(by='sentence_score', ascending=False, ignore_index=True)
             tag = df.tag.iloc[0]
@@ -248,6 +248,7 @@ class SearchByAttributes:
 # def > save_text(url, title, text_lines, df, text_file, sql=False)
 def save_text(url, title, text_lines, df, txt_file, sql=False):
     uid = f'{datetime.now():D%d%m%yT%H%M%S}_{uuid.uuid4().hex[:15]}'
+    
 
     
     with open(txt_file, 'a', encoding='utf-8') as f:
@@ -258,13 +259,14 @@ def save_text(url, title, text_lines, df, txt_file, sql=False):
         # f.write(f'body: {text}\n')
         f.write('\n')
     if sql:
+        table_name = f'{txt_file}_metadata'
         sql = df.copy()
         sql['attribute'] = sql['attribute'].apply(json.dumps)
         # create url column
         sql.insert(0, 'url', url)
         # create id column
-        # uid = f'{datetime.now():D%d%m%yT%H%M%S}_{uuid.uuid4().hex[:15]}'
         sql.insert(0, 'id', [f'{uid}_{i}' for i in range(len(sql))])
         # send to sql
         sql.to_sql(table_name, conn, if_exists='append', index=False)
         conn.commit()
+
