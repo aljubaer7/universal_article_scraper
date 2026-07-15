@@ -3,4 +3,6 @@ test.ipynb
 data/
 saved_soups/
 test/
-_pycache_/
+__pycache__/
+downloaded_files/
+latest_logs/
