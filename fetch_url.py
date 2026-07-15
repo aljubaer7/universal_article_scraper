@@ -1,5 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
+from seleniumbase import Driver
 import os
 import pandas as pd
 import uuid
@@ -10,24 +11,48 @@ cursor = conn.cursor()
 
 with open(r'data\headers.txt', 'r') as f:
     headers = eval(f.read())
-avoid_tags = ['script', 'noscript', 'style', 'meta', 'link', 'aside', 'footer', 'img', 'cite', 'button', 'iframe', 'figcaption']
+avoid_tags = ['script', 'noscript', 'style', 'meta', 'link', 'aside', 'footer', 
+              'img', 'figure', 'audio', 'video', 'cite', 'button', 'iframe', 'figcaption', 'svg', 'path', 'source']
+timeout = 10
+# driver = Driver(uc=True, headless=True, page_load_strategy='eager')
+# driver.execute_cdp_cmd('Network.setBlockedURLs', {'urls': 
+#                     ['*.png', '*.jpg', '*.img', '*.jpeg', '*.gif', '*.webp', '*.mp4']})
 
 
-def get_soup(url, timeout=10):
-    session = requests.Session()
-    session.headers.update(headers)
-    try:
-        response = session.get(url, timeout=timeout)
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.content, "lxml")
-            for tag in soup(avoid_tags):
-                tag.decompose()
-            return soup
-        else:
-            # try selenium
+class UrlFetcher:
+    def __init__(self, url):
+        self.url = url
+
+    def getby_bs(self):
+        session = requests.Session()
+        session.headers.update(headers)
+        try:
+            response = session.get(self.url, timeout=timeout)
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.content, "lxml")
+                for tag in soup(avoid_tags):
+                    tag.decompose()
+                return soup
+            else:
+                return None
+        except:
             return None
-    except: # count error
-        return None
+
+    # def getby_se(self):
+    #     driver.uc_open(self.url)
+    #     html_content = driver.page_source
+    #     soup = BeautifulSoup(html_content, "lxml")
+    #     for tag in soup(avoid_tags):
+    #         tag.decompose()
+    #     return soup
+
+    # def get_soup(self):
+    #     soup = self.getby_bs()
+    #     if soup:
+    #         if soup.title:
+    #             return soup
+    #     soup = self.getby_se()
+    #     return soup
     
 def save_soup(soup, url):
     file_name = f'{uuid.uuid4().hex}.html'

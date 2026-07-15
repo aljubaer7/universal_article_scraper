@@ -1,8 +1,8 @@
-import fetch_url
+# import fetch_url
 from urllib.parse import urlparse, urljoin
 import random
 
-with open(r'data\social_links.txt', 'r') as f: # excludeable domains
+with open(r'data\excludeables.txt', 'r') as f: # excludeable domains
     excludeables = [item.strip() for item in f]
 
 class CollectUrls:
@@ -31,12 +31,13 @@ class CollectUrls:
         return filtered_urls
 
 
-    def get_urls(self, base_url: str, filtr=True) -> list:
+    def get_urls(self, base_url: str, soup, filtr=True) -> list:
         '''
         Get and filter all links available inside the given url.
         Only returns links of same domains.
         '''
-        soup = fetch_url.get_soup(base_url)
+        # fetcher = fetch_url.UrlFetcher(base_url)
+        # soup = fetcher.get_soup()
         if soup:
             raw_urls = list(dict.fromkeys([
                 urljoin(base_url, a.get('href'))
@@ -87,22 +88,22 @@ class CollectUrls:
         ]
     
 
-    def get_flurl(self, url: str) -> list: # get first level url
+    def get_flurl(self, url: str, soup) -> list: # get first level url
         '''
         Returns first-level category urls followed by same domain.
         '''
-        all_urls = self.get_urls(url) # get all available urls
+        all_urls = self.get_urls(url, soup) # get all available urls
         category_urls = self.get_main_category(all_urls)
         if category_urls:
             return category_urls
         return []
     
 
-    def get_slurl(self, url: str) -> list: # get second level url
+    def get_slurl(self, url: str, soup) -> list: # get second level url
         '''
         Returns second-level category urls followed by same domain.
         '''
-        all_urls = self.get_urls(url) # get all available urls
+        all_urls = self.get_urls(url, soup) # get all available urls
         # only follow category
         return [
             item for item in all_urls
