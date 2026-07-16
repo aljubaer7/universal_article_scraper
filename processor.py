@@ -7,8 +7,9 @@ import pandas as pd
 from datetime import datetime
 from collections import Counter
 
-import spacy
-nlp = spacy.load('en_core_web_lg')
+# pronouns & prepositions
+with open(r'data\pnoun_prep.txt', 'r') as f:
+    pnoun_preps = [item.strip().lower() for item in f]
 
 import sqlite3
 conn = sqlite3.connect(r'data\metadata.db')
@@ -23,7 +24,7 @@ dflt_parameters = { # default parameters
     'max_colon': 15,
     'max_int_txt_simi': 0.95,
     'max_exr_txt_simi': 0.998,
-    'min_sent_score': 0.40
+    'min_sent_score': 0.5
 }
 
 
@@ -97,8 +98,10 @@ class TextValidator:
                 line for line in uniq_text_lines
                 if line.strip()  # Skip empty lines
                 and (words := line.split())  # Walrus operator
+                and not '|' in line
                 and not (words[0][0] == '(' and words[-1][-1] == ')')
                 and not (words[0][0] == '[' and words[-1][-1] == ']')
+                and not (words[0][0] == '/' and words[-1][-1] == '/')
                 and not line.lower().startswith('also read')
                 and not line.lower().startswith('read more')
                 and not line.lower().startswith('tap here')
@@ -109,38 +112,35 @@ class TextValidator:
     # nlp scoring
     def sentence_score(self):
         scores = []
-        sentences = [sen.text for line in self.text_lines for sen in nlp(line).sents]
-        for sent in sentences:
-            score = 0.99
-            doc = nlp(sent)
-            words = sent.split(' ')
+
+        for line in self.text_lines:
+            score = 0.999
+
             # start capitalization
-            if not sent[0].isupper():
-                score += -0.11 * 3
-            # end punctuation
-            if not sent[-1] in ('.', '!', '?'):
-                score += -0.11 * 3
-            # upper-case
-            if [word.isupper() for word in words].count(True) > 1:
-                score += -0.11 * 1.5
-            # title-case
-            if [token.is_title for token in doc].count(True) / len(words) > 0.60:
-                score += -0.11 * 1.5
-            # subject
-            if not any(token.dep_ in ("nsubj", "nsubjpass") for token in doc):
-                score += -0.11 * 2
-            # verb
-            if not any(token.pos_ == "VERB" for token in doc):
-                score += -0.11 * 2
-            # out-of-vocab
-            if [token.is_oov for token in doc].count(True) > 0:
-                score += -0.11 * 1.5
-            # space
-            if any(token.pos_ == "SPACE" for token in doc):
-                score += -0.11
-            # length
-            if len(words) < 3:
-                score += -0.11 * 3
+            fst_word = re.sub(r'[^a-zA-Z\s]', '', line.split()[0])
+            if not fst_word.istitle():
+                score -= 0.40
+
+            # end puncuation
+            end_chr = re.sub(r'[^a-zA-Z.!?]', '', line)[-1]
+            if end_chr not in ('.', '!', '?'):
+                score -= 0.40
+
+            # word count
+            word_count = len(line.split())
+            if word_count < 5:
+                score -= 0.099 * 2
+
+            # UPPER-CASE count
+            upper_count = sum([word.isupper() for word in line.split()])
+            if upper_count > 5:
+                score -= 0.099
+
+            # pronoun preposition count
+            pnoun_prep_count = sum([1 if w.lower() in pnoun_preps else 0 for w in line.split()])
+            if pnoun_prep_count < 3:
+                score -= 0.001 * 2
+
             scores.append(score)
         return statistics.mean(scores)
     
