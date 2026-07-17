@@ -53,38 +53,24 @@ class CollectUrls:
 
     def get_main_category(self, urls: list) -> list:
         '''
-        Keep only urls of main category by comparing with eatch other.
+        Keep only urls of main category.
         Keep urls with short path < 32 (usual category text length)
         Eg. tech, environment, health, business, science-technology-environment
         '''
-        exc_idx = set() # index of excludeable urls
-        for l in range(0, len(urls) - 1):
-            for r in range(l + 1, len(urls)):
-                if l != r:
-                    # one url is from other url's category
-                    if urls[l] in urls[r] or urls[r] in urls[l]:
-                        if len(urls[l]) < len(urls[r]):
-                            exc_idx.add(r)
-                        else:
-                            exc_idx.add(l)
-        # Exclude by list index
-        category_urls = [urls[i] for i in range(len(urls)) if i not in exc_idx]
 
-        # second check if any non-category urls exists
-        short_path_urls = set()
-        for url in category_urls:
-            if url.count('/') > 3: # exclude multiple path
-                parts = url.split('/')
-                short_path = f'{parts[0]}//{parts[2]}/{parts[3]}'
-                short_path_urls.add(short_path)
-            else:
-                short_path_urls.add(url)
-
+        flu = set()
+        for url in urls:
+            parts = url.split('/')
+            if len(parts) > 3:
+                category_url = f'{parts[0]}//{parts[2]}/{parts[3]}'
+                flu.add(category_url)
+        
         # exclude if category is > 32
         return [
-            item for item in short_path_urls
+            item for item in list(flu)
             if len(item.split('/')[-1]) < 32
             and '?' not in item
+            and '@' not in item
         ]
     
 
