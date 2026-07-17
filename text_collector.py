@@ -1,4 +1,5 @@
 import random
+import pandas as pd
 from datetime import datetime
 
 import fetch_url
@@ -25,11 +26,14 @@ parameters = {
 with open(r'data\second_level_urls.txt', 'r', encoding='utf-8') as f:
     sec_level_url = [item.strip() for item in f]
 random.shuffle(sec_level_url)
-sec_level_url = list(dict.fromkeys(sec_level_url))
+
+df = pd.DataFrame({'urls': sec_level_url})
+df = df.drop_duplicates(subset='urls')
 # exclude visited urls
 with open(r'data\visited_urls.txt', 'r', encoding='utf-8') as f:
     visited_urls = [item.strip() for item in f]
-sec_level_url = [url for url in sec_level_url if url not in visited_urls]
+df = df[~df['urls'].isin(visited_urls)]
+sec_level_url = df['urls'].to_list()
 print(f'{datetime.now():%d.%m.%yT%H:%M:%S} INFO:  {len(sec_level_url)} unique urls found!')
 
 

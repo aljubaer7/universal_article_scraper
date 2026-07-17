@@ -24,7 +24,7 @@ dflt_parameters = { # default parameters
     'max_colon': 15,
     'max_int_txt_simi': 0.95,
     'max_exr_txt_simi': 0.998,
-    'min_sent_score': 0.5
+    'min_sent_score': 0.50
 }
 
 
@@ -99,6 +99,7 @@ class TextValidator:
                 if line.strip()  # Skip empty lines
                 and (words := line.split())  # Walrus operator
                 and not '|' in line
+                and not "Keep updated, follow The Business Standard's Google news channel" in line
                 and not (words[0][0] == '(' and words[-1][-1] == ')')
                 and not (words[0][0] == '[' and words[-1][-1] == ']')
                 and not (words[0][0] == '/' and words[-1][-1] == '/')
@@ -122,7 +123,8 @@ class TextValidator:
                 score -= 0.40
 
             # end puncuation
-            end_chr = re.sub(r'[^a-zA-Z.!?]', '', line)[-1]
+            chrs = re.sub(r'[^a-zA-Z.!?]', '', line)
+            end_chr = chrs[-1] if chrs else ''
             if end_chr not in ('.', '!', '?'):
                 score -= 0.40
 
