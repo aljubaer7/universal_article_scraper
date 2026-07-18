@@ -1,6 +1,8 @@
-import fetch_url
-import collect_urls
 from datetime import datetime
+import fetch_url
+fetcher = fetch_url.UrlFetcher(fallback=True)
+import collect_urls
+collector = collect_urls.CollectUrls()
 
 ## get base-urls
 with open(r'data\base_urls.txt', 'r') as f:
@@ -12,14 +14,10 @@ ic = 0
 first_level_urls = []
 
 for url in base_urls:
-    fetcher = fetch_url.UrlFetcher(url)
-    soup = fetcher.getby_bs()
-    if soup:
-        collector = collect_urls.CollectUrls()
-        fl_urls = collector.get_flurl(url, soup)
+    soup = fetcher.get_soup(url)
+    fl_urls = collector.get_flurl(url, soup)
+    if fl_urls:
         first_level_urls.extend(fl_urls)
-    else:
-        fl_urls = []
     ic += 1
     print(f'{datetime.now():%d.%m.%yT%H:%M:%S} INFO:  Base-url: {url} - {len(fl_urls)} first-level urls found.')
 

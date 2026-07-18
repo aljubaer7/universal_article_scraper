@@ -36,8 +36,6 @@ class CollectUrls:
         Get and filter all links available inside the given url.
         Only returns links of same domains.
         '''
-        # fetcher = fetch_url.UrlFetcher(base_url)
-        # soup = fetcher.get_soup()
         if soup:
             raw_urls = list(dict.fromkeys([
                 urljoin(base_url, a.get('href'))
@@ -89,12 +87,17 @@ class CollectUrls:
         '''
         Returns second-level category urls followed by same domain.
         '''
-        all_urls = self.get_urls(url, soup) # get all available urls
-        # only follow category
-        return [
-            item for item in all_urls
-            if url in item
-        ]
+        # get base-url
+        parsed = urlparse(url)
+        base_url = f'{parsed.scheme}://{parsed.netloc}'
+
+        all_urls = self.get_urls(base_url, soup) # get all available urls
+        slu = []
+        for url in all_urls:
+            tail = url.rstrip('/').split('/')[-1]
+            if 'article' in tail or tail.count('-') > 3:
+                slu.append(url)
+        return slu
 
 
     def run_url_collector(self, base_urls: list) ->list:

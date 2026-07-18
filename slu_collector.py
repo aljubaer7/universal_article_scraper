@@ -1,6 +1,8 @@
 import random
-import fetch_url
 from datetime import datetime
+
+import fetch_url
+fetcher = fetch_url.UrlFetcher(fallback=True)
 import collect_urls
 collector = collect_urls.CollectUrls()
 
@@ -12,15 +14,10 @@ random.shuffle(first_level_urls)
 ic = 0
 sec_level_url = []
 for url in first_level_urls:
-    fetcher = fetch_url.UrlFetcher(url)
-    soup = fetcher.getby_bs()
-    if soup:
-        sl_urls = collector.get_slurl(url, soup)
-        if sl_urls:
-            for item in sl_urls:
-                tail = '/'.join(item.split('/')[4:])
-                if 'article' in tail or tail.count('-') > 3:
-                    sec_level_url.append(item)
+    soup = fetcher.get_soup(url)
+    slu = collector.get_slurl(url, soup)
+    if slu:
+        sec_level_url.extend(slu)
     ic += 1
     print(f'\r{datetime.now():%d.%m.%yT%H:%M:%S} INFO:  Fetching second-level urls - {ic}/{len(first_level_urls)}', end='')
 
