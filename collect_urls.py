@@ -94,7 +94,7 @@ class CollectUrls:
         all_urls = self.get_urls(base_url, soup) # get all available urls
         slu = []
         for url in all_urls:
-            tail = url.rstrip('/').split('/')[-1]
+            tail = '/'.join(url.rstrip('/').split('/')[4:])
             if 'article' in tail or tail.count('-') > 3:
                 slu.append(url)
         return slu

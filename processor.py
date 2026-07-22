@@ -2,6 +2,7 @@ import re
 import uuid
 import json
 import statistics
+import unicodedata
 import numpy as np
 import pandas as pd
 from datetime import datetime
@@ -94,21 +95,58 @@ class TextValidator:
                         exc_idx.add(l)
                         exc_idx.add(r)
         uniq_text_lines = [self.text_lines[i] for i in range(len(self.text_lines)) if i not in exc_idx]
+        # return [
+        #         line for line in uniq_text_lines
+        #         if line.strip()  # Skip empty lines
+        #         and (words := line.split())  # Walrus operator
+        #         and not '|' in line # exc
+        #         and not "Keep updated, follow The Business Standard's Google news channel" in line #exc
+        #         and not (words[0][0] == '(' and words[-1][-1] == ')')
+        #         and not (words[0][0] == '[' and words[-1][-1] == ']')
+        #         and not (words[0][0] == '/' and words[-1][-1] == '/')
+        #         and not line.lower().startswith('also read')
+        #         and not line.lower().startswith('read more')
+        #         and not line.lower().startswith('tap here')
+        #         and not (line.lower().startswith('image') and words[-1][-1] not in '.?!')
+        #         and not (line.startswith('Writer') and ':' in line)
+        #     ]
+        return uniq_text_lines
+
+    def _character_maping(self, text_lines) -> list:
+        result = []
+        for line in text_lines:
+            norm = unicodedata.normalize('NFD', line)
+            line = ''.join(char for char in norm if not unicodedata.combining(char))
+            line = re.sub(r'(?![‐‑‒–—―‘’“”′″❝❞])[^ -~]', '', line)
+            line = ' '.join(line.split())
+            result.append(line)
+        return result
+    def _exclude(self, text_lines):
         return [
-                line for line in uniq_text_lines
-                if line.strip()  # Skip empty lines
-                and (words := line.split())  # Walrus operator
-                and not '|' in line
-                and not "Keep updated, follow The Business Standard's Google news channel" in line
-                and not (words[0][0] == '(' and words[-1][-1] == ')')
-                and not (words[0][0] == '[' and words[-1][-1] == ']')
-                and not (words[0][0] == '/' and words[-1][-1] == '/')
-                and not line.lower().startswith('also read')
-                and not line.lower().startswith('read more')
-                and not line.lower().startswith('tap here')
-                and not (line.lower().startswith('image') and words[-1][-1] not in '.?!')
-                and not (line.startswith('Writer') and ':' in line)
-            ]
+                    line for line in text_lines
+                    if line.strip()  # Skip empty lines
+                    and not '|' in line # exc
+                    # Keep updated, follow The Business Standard's Google news channel
+                    and not all([i in line.lower() for i in ['follow', 'news', 'channel']])
+                    and not all([i in line.lower() for i in ['comment', 'post', 'view']])
+                    and not (line[0] == '(' and line[-1] == ')')
+                    and not (line[0] == '[' and line[-1] == ']')
+                    and not (line[0] == '/' and line[-1] == '/')
+                    and not any([line.lower().startswith(i) for i in ['also read', 'read more', 'tap here', 'related news']])
+                    and not (line.lower().startswith('image') and line[-1] not in '.?!')
+                    and not (line.lower().startswith('most viewed') and line[-1] not in '.?!')
+                    and not (line.startswith('Writer') and ':' in line)
+                ]
+    def _replace(self, text_lines) -> list:
+        return [line.replace("\'", "′") for line in text_lines]
+    
+    def filter_text_lines(self) -> list:
+        text_lines = self.exclude_simi_lines()
+        text_lines = self._character_maping(text_lines)
+        text_lines = self._exclude(text_lines)
+        text_lines = self._replace(text_lines)
+        return text_lines
+
 
     # nlp scoring
     def sentence_score(self):
@@ -149,9 +187,10 @@ class TextValidator:
 
 # class > SearchByArticle
 class SearchByArticle:
-    def __init__(self, soup, tag='article'):
+    def __init__(self, soup, tag='article', parameters=dflt_parameters):
         self.soup = soup
         self.tag = tag
+        self.parameters = parameters
 
     def get_article_text(self):
         tags = list({tag.name for tag in self.soup.find_all()})
@@ -165,13 +204,12 @@ class SearchByArticle:
                 text_lines = validator.exclude_simi_lines()
 
                 sentence_score = validator.sentence_score()
-                # if original_score > 0.45:
-                metadata = {'tag': self.tag, 'attribute': 'n/a'}
-                metadata.update(validator.create_metadata())
-                metadata.update({'sentence_score': sentence_score})
-                df = pd.DataFrame([metadata])
-
-                return text_lines, df
+                if sentence_score > self.parameters['min_sent_score']:
+                    metadata = {'tag': self.tag, 'attribute': 'n/a'}
+                    metadata.update(validator.create_metadata())
+                    metadata.update({'sentence_score': sentence_score})
+                    df = pd.DataFrame([metadata])
+                    return text_lines, df
         return None, None
     
 
@@ -210,14 +248,15 @@ class SearchByAttributes:
         else:
             return None
             
-    def get_textLines(self, tag, attribute):
+    def get_textLines(self, tag, attribute, filter=True):
         '''Get text lines as list from given single tag and single attribute'''
         html_content = self.soup.find_all(tag, attribute)
         text_content = [r.text.strip() for res in html_content for r in res if r.text.strip()]
         text_lines = [' '.join(line.split()) for line in text_content if line and len(line) > 1]
-        validator = TextValidator(text_lines, self.parameters)
-        filtered_text_lines = validator.exclude_simi_lines()
-        return filtered_text_lines
+        if filter:
+            validator = TextValidator(text_lines, self.parameters)
+            text_lines = validator.filter_text_lines()
+        return text_lines
 
     # prevent same text processing multiple times by calculating similarity
     def vector_similarity(self, text_lines, text_vector):
