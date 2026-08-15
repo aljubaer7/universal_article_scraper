@@ -31,19 +31,18 @@ dflt_parameters = { # default parameters
 
 # class > TextValidator
 class TextValidator:
-    def __init__(self, text_lines: list, parameters=dflt_parameters):
-        self.text_lines = text_lines
+    def __init__(self, parameters=dflt_parameters):
         self.parameters = parameters
 
 
-    def create_metadata(self):
-        if self.text_lines:
-            lines: int = len(self.text_lines) # lines inside text-lines
-            line_lens: list = [len(i) for i in self.text_lines] # length of each individual line
+    def create_metadata(self, text_lines: list):
+        if text_lines:
+            lines: int = len(text_lines) # lines inside text-lines
+            line_lens: list = [len(i) for i in text_lines] # length of each individual line
             text_len: int = sum(line_lens) # total length of text across all lines
             avg: float = round(statistics.mean(line_lens), 2) # average text per line
             max_len_p: float = round(((max(line_lens) / text_len) * 100), 2) # text percentage of largest line
-            text = ' '.join(self.text_lines)
+            text = ' '.join(text_lines)
             tdot = text.count('...') + text.count('…')
             colon = text.count(':')
 
@@ -51,8 +50,8 @@ class TextValidator:
                         'tdot': tdot, 'colon': colon}
             return metadata
             
-    def is_valid(self) -> bool:
-        metadata = self.create_metadata()
+    def is_valid(self, text_lines: list) -> bool:
+        metadata = self.create_metadata(text_lines)
         if metadata:
             return (
                         metadata['lines'] > self.parameters['min_text_lines'] and
@@ -82,34 +81,19 @@ class TextValidator:
             return dot_product / norm_xy
         else:
             return 0        
-    def exclude_simi_lines(self):
+    def exclude_simi_lines(self, text_lines: list):
         '''Exclude similar lines (internal) from a given list of text-lines'''
         exc_idx = set()
-        for l in range(0, len(self.text_lines) - 1):
-            for r in range(l + 1, len(self.text_lines)):
+        for l in range(0, len(text_lines) - 1):
+            for r in range(l + 1, len(text_lines)):
                 if l != r:
-                    similarity = self.calculate_similarity(self.text_lines[l], self.text_lines[r])
-                    if len(self.text_lines[l]) > 50 and similarity > self.parameters['max_int_txt_simi']:
+                    similarity = self.calculate_similarity(text_lines[l], text_lines[r])
+                    if len(text_lines[l]) > 50 and similarity > self.parameters['max_int_txt_simi']:
                         exc_idx.add(max(l, r))
-                    elif len(self.text_lines[l]) < 50 and similarity > self.parameters['max_int_txt_simi'] - 0.05:
+                    elif len(text_lines[l]) < 50 and similarity > self.parameters['max_int_txt_simi'] - 0.05:
                         exc_idx.add(l)
                         exc_idx.add(r)
-        uniq_text_lines = [self.text_lines[i] for i in range(len(self.text_lines)) if i not in exc_idx]
-        # return [
-        #         line for line in uniq_text_lines
-        #         if line.strip()  # Skip empty lines
-        #         and (words := line.split())  # Walrus operator
-        #         and not '|' in line # exc
-        #         and not "Keep updated, follow The Business Standard's Google news channel" in line #exc
-        #         and not (words[0][0] == '(' and words[-1][-1] == ')')
-        #         and not (words[0][0] == '[' and words[-1][-1] == ']')
-        #         and not (words[0][0] == '/' and words[-1][-1] == '/')
-        #         and not line.lower().startswith('also read')
-        #         and not line.lower().startswith('read more')
-        #         and not line.lower().startswith('tap here')
-        #         and not (line.lower().startswith('image') and words[-1][-1] not in '.?!')
-        #         and not (line.startswith('Writer') and ':' in line)
-        #     ]
+        uniq_text_lines = [text_lines[i] for i in range(len(text_lines)) if i not in exc_idx]
         return uniq_text_lines
 
     def _character_maping(self, text_lines) -> list:
@@ -140,19 +124,35 @@ class TextValidator:
     def _replace(self, text_lines) -> list:
         return [line.replace("\'", "′") for line in text_lines]
     
-    def filter_text_lines(self) -> list:
-        text_lines = self.exclude_simi_lines()
-        text_lines = self._character_maping(text_lines)
-        text_lines = self._exclude(text_lines)
-        text_lines = self._replace(text_lines)
-        return text_lines
+    def filter_text_lines(self, text_lines) -> list:
+        t_lines = self.exclude_simi_lines(text_lines)
+        t_lines = self._character_maping(t_lines)
+        t_lines = self._exclude(t_lines)
+        t_lines = self._replace(t_lines)
+        return t_lines
 
+    # exclude concatenated words
+    def conc_words_count(self, line: str) -> int:
+        '''
+        Returns concatenated words count as int
+        '''
+        words = line.split() # list of words
+        words = [re.split(r'[^A-Za-z0-9,.?!]', word) for word in words] # split word by special characters
+        words = [item for sublist in words for item in sublist] # flattened list
+        words = [word for word in words if len(word) > 4] # exclude short words
+        count = sum([any([w.isupper() for w in word[1:-1]]) for word in words if not word.isupper()]) # count concateneted words
+        return count
+    def exc_conc_words(self, text_lines: list, max_conc: int = 2) -> list:
+        '''
+        Excludes lines if concatenated-words-count is higher than max_conc (given number)
+        '''
+        return [line for line in text_lines if self.conc_words_count(line) < max_conc]
 
     # nlp scoring
-    def sentence_score(self):
+    def sentence_score(self, text_lines: list):
         scores = []
 
-        for line in self.text_lines:
+        for line in text_lines:
             score = 0.999
 
             # start capitalization
@@ -198,15 +198,18 @@ class SearchByArticle:
             html_content = self.soup.find(self.tag)
             text_content = [item.text.strip() for item in html_content if item.text.strip()]
             text_lines = [' '.join(line.split()) for line in text_content if line and len(line) > 1]
-            
-            validator = TextValidator(text_lines)
-            if validator.is_valid():
-                text_lines = validator.exclude_simi_lines()
 
-                sentence_score = validator.sentence_score()
+            # filter text_lines
+            validator = TextValidator()
+            text_lines = validator.filter_text_lines(text_lines)
+            text_lines = validator.exc_conc_words(text_lines)
+            
+            if validator.is_valid(text_lines):
+
+                sentence_score = validator.sentence_score(text_lines)
                 if sentence_score > self.parameters['min_sent_score']:
                     metadata = {'tag': self.tag, 'attribute': 'n/a'}
-                    metadata.update(validator.create_metadata())
+                    metadata.update(validator.create_metadata(text_lines))
                     metadata.update({'sentence_score': sentence_score})
                     df = pd.DataFrame([metadata])
                     return text_lines, df
@@ -254,8 +257,9 @@ class SearchByAttributes:
         text_content = [r.text.strip() for res in html_content for r in res if r.text.strip()]
         text_lines = [' '.join(line.split()) for line in text_content if line and len(line) > 1]
         if filter:
-            validator = TextValidator(text_lines, self.parameters)
-            text_lines = validator.filter_text_lines()
+            validator = TextValidator(self.parameters)
+            text_lines = validator.filter_text_lines(text_lines)
+            text_lines = validator.exc_conc_words(text_lines)
         return text_lines
 
     # prevent same text processing multiple times by calculating similarity
@@ -283,28 +287,24 @@ class SearchByAttributes:
         return max_simi
         
     def loop_attributes(self):
-        text_vector = []
         df = pd.DataFrame()
         attributes: list = self.get_attributes()
+        validator = TextValidator(self.parameters)
+
         for item in attributes:
             for tag in self.tags:
                 text_lines: list = self.get_textLines(tag, item)
-                validator = TextValidator(text_lines, self.parameters)
-                # clear unwanted lines
-                # text_lines: list = validator.clear_lines()
-                if validator.is_valid():
-                    text_similarity: float = self.vector_similarity(text_lines, text_vector)
-                    if text_similarity < self.parameters['max_exr_txt_simi']:
-                        # sentence scoring
-                        sentence_score = validator.sentence_score()
-                        if sentence_score > self.parameters['min_sent_score']:
-                        
-                            metadata = {'tag': tag, 'attribute': item}
-                            metadata.update(validator.create_metadata())
-                            metadata.update({'sentence_score': sentence_score})
 
-                            dfr = pd.DataFrame([metadata])
-                            df = pd.concat([df, dfr], ignore_index=True)
+                if validator.is_valid(text_lines):
+                    # sentence scoring
+                    sentence_score = validator.sentence_score(text_lines)
+                    if sentence_score > self.parameters['min_sent_score']:
+                        metadata = {'tag': tag, 'attribute': item}
+                        metadata.update(validator.create_metadata(text_lines))
+                        metadata.update({'sentence_score': sentence_score})
+
+                        dfr = pd.DataFrame([metadata])
+                        df = pd.concat([df, dfr], ignore_index=True)
         if len(df) > 0:
             df = df.sort_values(by='sentence_score', ascending=False, ignore_index=True)
             tag = df.tag.iloc[0]

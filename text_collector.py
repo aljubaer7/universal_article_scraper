@@ -7,7 +7,7 @@ import fetch_url
 fetcher = fetch_url.UrlFetcher()
 
 # output text-file name
-txt_file = r'data\corpus_b.txt'
+txt_file = r'data\corpus_ind.txt'
 
 # tags and parameters
 tags = ['div', 'span', 'article', 'section']
@@ -20,11 +20,11 @@ parameters = {
     'max_colon': 12,
     'max_int_txt_simi': 0.95,
     'max_exr_txt_simi': 0.998,
-    'min_sent_score': 0.60
+    'min_sent_score': 0.63
 }
 
 # load urls
-sec_level_url = open(r'data\second_level_urls.txt', 'r', encoding='utf-8').read().split()
+sec_level_url = open(r'data\second_level_urls_current.txt', 'r', encoding='utf-8').read().split()
 l = len(sec_level_url)
 random.shuffle(sec_level_url)
 
