@@ -6,8 +6,10 @@ import processor as pr
 import fetch_url
 fetcher = fetch_url.UrlFetcher()
 
+# input-url text-file name
+in_text_file = r'data\second_level_urls.txt'
 # output text-file name
-txt_file = r'data\corpus_ind.txt'
+out_txt_file = r'data\corpus_c.txt'
 
 # tags and parameters
 tags = ['div', 'span', 'article', 'section']
@@ -23,11 +25,12 @@ parameters = {
     'min_sent_score': 0.63
 }
 
-# load urls
-sec_level_url = open(r'data\second_level_urls_current.txt', 'r', encoding='utf-8').read().split()
+# load input-urls
+sec_level_url = open(in_text_file, 'r', encoding='utf-8').read().split()
 l = len(sec_level_url)
 random.shuffle(sec_level_url)
 
+# clear duplicates
 df = pd.DataFrame({'urls': sec_level_url})
 df = df.drop_duplicates(subset='urls')
 # exclude visited urls
@@ -54,12 +57,12 @@ for url in sec_level_url:
             article = pr.SearchByArticle(soup, parameters=parameters)
             text_lines, df = article.get_article_text()
             if text_lines:
-                pr.save_text(url, title, text_lines, df, txt_file)
+                pr.save_text(url, title, text_lines, df, out_txt_file)
             else:
                 text = pr.SearchByAttributes(soup, tags, parameters=parameters)
                 text_lines, df = text.loop_attributes()
                 if text_lines:
-                    pr.save_text(url, title, text_lines, df, txt_file)
+                    pr.save_text(url, title, text_lines, df, out_txt_file)
                 # end process----------------------------------------------------/
                 visited += 1
 

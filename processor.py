@@ -43,11 +43,13 @@ class TextValidator:
             avg: float = round(statistics.mean(line_lens), 2) # average text per line
             max_len_p: float = round(((max(line_lens) / text_len) * 100), 2) # text percentage of largest line
             text = ' '.join(text_lines)
-            tdot = text.count('...') + text.count('…')
-            colon = text.count(':')
+            tdot: str = text.count('...') + text.count('…')
+            colon: str = text.count(':')
+            # count of unique subjects
+            unq_sub: str = len(list(dict.fromkeys([i.split()[0] for i in text_lines])))
 
             metadata = {'lines': lines, 'text_len': text_len, 'avg_len': avg, 'max_len_p': max_len_p,
-                        'tdot': tdot, 'colon': colon}
+                        'tdot': tdot, 'colon': colon, 'unique_sub': unq_sub}
             return metadata
             
     def is_valid(self, text_lines: list) -> bool:
@@ -59,7 +61,8 @@ class TextValidator:
                         metadata['avg_len'] > self.parameters['avg_line_len'] and
                         metadata['max_len_p'] < self.parameters['max_line_len_p'] and
                         metadata['tdot'] < self.parameters['max_tdot'] and
-                        metadata['colon'] < self.parameters['max_colon']
+                        metadata['colon'] < self.parameters['max_colon'] and
+                        metadata['unique_sub'] > 1
                     )
         else:
             return False
@@ -101,7 +104,10 @@ class TextValidator:
         for line in text_lines:
             norm = unicodedata.normalize('NFD', line)
             line = ''.join(char for char in norm if not unicodedata.combining(char))
-            line = re.sub(r'(?![‐‑‒–—―‘’“”′″❝❞])[^ -~]', '', line)
+            line = re.sub(r'[‐‑‒–—―]', '-', line)
+            line = re.sub(r'[‘’′]', "'", line)
+            line = re.sub(r'[″❝❞“”]', '"', line)
+            line = re.sub(r'[^ -~]', '', line)
             line = ' '.join(line.split())
             result.append(line)
         return result
@@ -112,18 +118,29 @@ class TextValidator:
                     and not '|' in line # exc
                     # Keep updated, follow The Business Standard's Google news channel
                     and not all([i in line.lower() for i in ['follow', 'news', 'channel']])
+                    and not all([i in line.lower() for i in ['follow', 'facebook', 'instagram']])
+                    and not all([i in line.lower() for i in ['follow', 'subscribe', 'newsletter']])
+                    and not all([i in line.lower() for i in ['subscribe', 'news', 'channel']])
                     and not all([i in line.lower() for i in ['comment', 'post', 'view']])
+                    and not all([i in line.lower() for i in ['sign up', 'news', 'channel']])
+                    and not all([i in line.lower() for i in ['sign up', 'newsletter']])
+                    and not all([i in line.lower() for i in ['click', 'download', 'app']])
+                    and not all([i in line.lower() for i in ['click', 'more', 'news']])
+                    and not all([i in line.lower() for i in ['get', 'latest', 'news']])
+                    and not all([i in line.lower() for i in ['latest', 'news', 'update']])
+                    and not all([i in line.lower() for i in ['views', 'expressed', 'author']])
                     and not (line[0] == '(' and line[-1] == ')')
                     and not (line[0] == '[' and line[-1] == ']')
                     and not (line[0] == '/' and line[-1] == '/')
-                    and not any([line.lower().startswith(i) for i in ['also read', 'read more', 'tap here', 'related news']])
+                    and not any([line.lower().startswith(i) for i in ['also read', 'read more', 'tap here', 'related news', 'click here', 'advertise']])
                     and not (line.lower().startswith('image') and line[-1] not in '.?!')
                     and not (line.lower().startswith('most viewed') and line[-1] not in '.?!')
+                    and not (line.lower().startswith('sign in') and line[-1] not in '.?!')
+                    and not (line.lower().startswith('read') and line[-1] not in '.?!')
                     and not (line.startswith('Writer') and ':' in line)
                 ]
     def _replace(self, text_lines) -> list:
         return [line.replace("\'", "′") for line in text_lines]
-    
     def filter_text_lines(self, text_lines) -> list:
         t_lines = self.exclude_simi_lines(text_lines)
         t_lines = self._character_maping(t_lines)
@@ -142,7 +159,7 @@ class TextValidator:
         words = [word for word in words if len(word) > 4] # exclude short words
         count = sum([any([w.isupper() for w in word[1:-1]]) for word in words if not word.isupper()]) # count concateneted words
         return count
-    def exc_conc_words(self, text_lines: list, max_conc: int = 2) -> list:
+    def exc_conc_words(self, text_lines: list, max_conc: int = 6) -> list:
         '''
         Excludes lines if concatenated-words-count is higher than max_conc (given number)
         '''
@@ -255,7 +272,7 @@ class SearchByAttributes:
         '''Get text lines as list from given single tag and single attribute'''
         html_content = self.soup.find_all(tag, attribute)
         text_content = [r.text.strip() for res in html_content for r in res if r.text.strip()]
-        text_lines = [' '.join(line.split()) for line in text_content if line and len(line) > 1]
+        text_lines = [' '.join(line.split()) for line in text_content if line]
         if filter:
             validator = TextValidator(self.parameters)
             text_lines = validator.filter_text_lines(text_lines)

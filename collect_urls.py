@@ -25,7 +25,12 @@ class CollectUrls:
             if any(link in url for link in excludeables):
                 continue
             # Exclude external domains
-            if not urlparse(url).netloc == urlparse(base_url).netloc:
+            base_domain = urlparse(base_url).netloc.split('www.')[-1].split('.')[0]
+            url_domain = urlparse(url).netloc.split('www.')[-1].split('.')[0]
+
+
+            # if not urlparse(url).netloc == urlparse(base_url).netloc:
+            if not base_domain == url_domain:
                 continue
             filtered_urls.append(url)
         return filtered_urls
@@ -90,11 +95,13 @@ class CollectUrls:
         # get base-url
         parsed = urlparse(url)
         base_url = f'{parsed.scheme}://{parsed.netloc}'
-
         all_urls = self.get_urls(base_url, soup) # get all available urls
+        # remove query
+        all_urls = [url.split('?')[0] for url in all_urls]
+
         slu = []
         for url in all_urls:
-            tail = '/'.join(url.rstrip('/').split('/')[4:])
+            tail = '/'.join(url.rstrip('/').split('/')[3:])
             if 'article' in tail or tail.count('-') > 3:
                 slu.append(url)
         return slu
