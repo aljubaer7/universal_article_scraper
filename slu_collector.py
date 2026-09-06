@@ -18,7 +18,7 @@ random.shuffle(first_level_urls)
 print(f'{datetime.now():%d.%m.%yT%H:%M:%S} INFO:  {len(first_level_urls)} first-level urls found.')
 
 ic = 0
-for url in first_level_urls[0:10]:
+for url in first_level_urls:
     soup = fetcher.get_soup(url)
     slu = collector.get_slurl(url, soup)
     if slu:

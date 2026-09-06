@@ -134,15 +134,18 @@ class TextValidator:
                     and not (line[0] == '/' and line[-1] == '/')
                     and not any([line.lower().startswith(i) for i in ['also read', 'read more', 'tap here', 'related news', 'click here', 'advertise']])
                     and not (line.lower().startswith('image') and line[-1] not in '.?!')
+                    and not (line.lower().startswith('getty') and line[-1] not in '.?!')
                     and not (line.lower().startswith('most viewed') and line[-1] not in '.?!')
                     and not (line.lower().startswith('sign in') and line[-1] not in '.?!')
                     and not (line.lower().startswith('read') and line[-1] not in '.?!')
+                    and not (line.lower().startswith('live') and line[-1] not in '.?!')
                     and not (line.startswith('Writer') and ':' in line)
                 ]
     def _replace(self, text_lines) -> list:
         return [line.replace("\'", "′") for line in text_lines]
     def filter_text_lines(self, text_lines) -> list:
-        t_lines = self.exclude_simi_lines(text_lines)
+        # t_lines = self.exclude_simi_lines(text_lines)
+        t_lines = list(dict.fromkeys(text_lines))
         t_lines = self._character_maping(t_lines)
         t_lines = self._exclude(t_lines)
         t_lines = self._replace(t_lines)
