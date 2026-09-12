@@ -88,7 +88,7 @@ class CollectUrls:
         return []
     
 
-    def get_slurl(self, url: str, soup) -> list: # get second level url
+    def get_slurl(self, url: str, soup, follow_category=True, max_url=25) -> list: # get second level url
         '''
         Returns second-level category urls followed by same domain.
         '''
@@ -104,32 +104,19 @@ class CollectUrls:
             tail = '/'.join(url.rstrip('/').split('/')[3:])
             if 'article' in tail or tail.count('-') > 3:
                 slu.append(url)
+
+        # filter by category
+        if follow_category:
+            if len(slu) < max_url:
+                return slu
+            elif len(slu) > max_url:
+                category = [p for p in parsed.path.split('/') if p]
+                ctg_slu = [u for u in slu if any([f'/{c}/' in u for c in category])] if category else slu
+                if len(ctg_slu) > max_url:
+                    return ctg_slu[:max_url]
+                elif len(ctg_slu) < max_url:
+                    non_cat = [u for u in slu if u not in ctg_slu]
+                    short = 25 - len(ctg_slu)
+                    return ctg_slu + non_cat[:short]
         return slu
-
-
-    def run_url_collector(self, base_urls: list) ->list:
-        '''
-        Loop through given base urls list
-        Collect first-level urls and second-level urls 
-        '''
-
-        first_level_urls = []
-        for url in base_urls:
-            first_level = self.get_flurl(url)
-            if first_level:
-                first_level_urls.extend(first_level)
-            
-        # shuffle first_level_urls
-        random.shuffle(first_level_urls)
-
-        sec_level_url = []
-        for url in first_level_urls:
-            sec_level = self.get_slurl(url)
-            if sec_level:
-                for item in sec_level:
-                    tail = '/'.join(item.split('/')[4:])
-                    if 'article' in tail or tail.count('-') > 3:
-                        sec_level_url.extend(item)
-        
-        return [item for item in sec_level_url if item not in first_level_urls]
         

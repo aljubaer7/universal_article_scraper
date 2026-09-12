@@ -108,7 +108,7 @@ class TextValidator:
             line = re.sub(r'[‘’′]', "'", line)
             line = re.sub(r'[″❝❞“”]', '"', line)
             line = re.sub(r'[^ -~]', '', line)
-            line = ' '.join(line.split())
+            # line = ' '.join(line.split())
             result.append(line)
         return result
     def _exclude(self, text_lines):
@@ -128,7 +128,9 @@ class TextValidator:
                     and not all([i in line.lower() for i in ['click', 'more', 'news']])
                     and not all([i in line.lower() for i in ['get', 'latest', 'news']])
                     and not all([i in line.lower() for i in ['latest', 'news', 'update']])
-                    and not all([i in line.lower() for i in ['views', 'expressed', 'author']])
+                    and not all([i in line.lower() for i in ['views', 'express', 'author']])
+                    and not any([i in line.lower() for i in ['photo:', 'photo :']])
+                    and not any([i in line.lower() for i in ['writer:', 'writer :']])
                     and not (line[0] == '(' and line[-1] == ')')
                     and not (line[0] == '[' and line[-1] == ']')
                     and not (line[0] == '/' and line[-1] == '/')
@@ -138,13 +140,12 @@ class TextValidator:
                     and not (line.lower().startswith('most viewed') and line[-1] not in '.?!')
                     and not (line.lower().startswith('sign in') and line[-1] not in '.?!')
                     and not (line.lower().startswith('read') and line[-1] not in '.?!')
+                    and not (line.lower().startswith('watch') and line[-1] not in '.?!')
                     and not (line.lower().startswith('live') and line[-1] not in '.?!')
-                    and not (line.startswith('Writer') and ':' in line)
                 ]
     def _replace(self, text_lines) -> list:
         return [line.replace("\'", "′") for line in text_lines]
     def filter_text_lines(self, text_lines) -> list:
-        # t_lines = self.exclude_simi_lines(text_lines)
         t_lines = list(dict.fromkeys(text_lines))
         t_lines = self._character_maping(t_lines)
         t_lines = self._exclude(t_lines)
@@ -167,6 +168,37 @@ class TextValidator:
         Excludes lines if concatenated-words-count is higher than max_conc (given number)
         '''
         return [line for line in text_lines if self.conc_words_count(line) < max_conc]
+
+    # join broken lines
+    def _ending_space(self, text):
+        return bool(text[-1].isspace())
+    def _starting_space(self, text):
+        return bool(text[0].isspace())
+    def _end_punctuation(self, text):
+        text = re.sub(r'[^a-zA-Z0-9:;,.?!]/', '', text)
+        return bool(text[-1] in '.?!')
+    def _start_capital(self, text):
+        if text[0].isnumeric():
+            return True
+        text = re.sub(r'[^a-zA-Z0-9:;,.?!\s]', '', text)
+        return bool(text[0].isupper())
+    def join_broken_lines(self, text_lines: list) -> list:
+        if len(text_lines) > 3:
+            result = []
+            previous_line = text_lines[0]
+            for i in range(1, len(text_lines)):
+                current_line = text_lines[i]
+                if not self._ending_space(previous_line) and self._start_capital(current_line):
+                    result.append(previous_line)
+                    previous_line = current_line
+                elif self._end_punctuation(previous_line) and not current_line[0].isalpha(): # previous is good, current not isalpha
+                    result.append(previous_line)
+                    previous_line = current_line
+                else:
+                    previous_line = previous_line + current_line
+            result.append(current_line)
+            return result
+        return text_lines
 
     # nlp scoring
     def sentence_score(self, text_lines: list):
@@ -270,17 +302,24 @@ class SearchByAttributes:
             return final_attributes
         else:
             return None
-            
+
+    def _is_text(self, text):
+        return bool(len(re.findall(r'[a-zA-Z,.?!]', text)) > 0)
+    
     def get_textLines(self, tag, attribute, filter=True):
         '''Get text lines as list from given single tag and single attribute'''
-        html_content = self.soup.find_all(tag, attribute)
-        text_content = [r.text.strip() for res in html_content for r in res if r.text.strip()]
-        text_lines = [' '.join(line.split()) for line in text_content if line]
-        if filter:
-            validator = TextValidator(self.parameters)
-            text_lines = validator.filter_text_lines(text_lines)
-            text_lines = validator.exc_conc_words(text_lines)
-        return text_lines
+        html_content = self.soup.find(tag, attribute)
+        if html_content:
+            all_lines = [c.text.replace('\n', '') for c in html_content]
+            text_lines = [line for line in all_lines if self._is_text(line) and '\t' not in line]
+
+            if filter:
+                validator = TextValidator(self.parameters)
+                text_lines = validator.filter_text_lines(text_lines)
+                text_lines = validator.join_broken_lines(text_lines)
+                text_lines = validator.exc_conc_words(text_lines)
+                text_lines = [' '.join(line.split()) for line in text_lines]
+            return text_lines
 
     # prevent same text processing multiple times by calculating similarity
     def vector_similarity(self, text_lines, text_vector):

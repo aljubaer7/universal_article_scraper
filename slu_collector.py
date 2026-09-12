@@ -26,7 +26,7 @@ for url in first_level_urls:
             f.writelines(f'{item}\n' for item in slu)
 
     ic += 1
-    print(f'{datetime.now():%d.%m.%yT%H:%M:%S} INFO:  {ic}/{len(first_level_urls)} | {url} - {len(slu)} urls.')
+    print(f'{datetime.now():%d.%m.%yT%H:%M:%S} INFO:  {ic}/{len(first_level_urls)} | {soup.status_code.text} | {url} - {len(slu)} urls.')
 
 # # current slu
 sec_level_url = open(out_txt_file, 'r', encoding='utf-8').read().split()

@@ -9,7 +9,7 @@ fetcher = fetch_url.UrlFetcher()
 # input-url text-file name
 in_text_file = r'data\second_level_urls.txt'
 # output text-file name
-out_txt_file = r'data\corpus_c.txt'
+out_txt_file = r'E:\TextCorpus\corpus_d.txt'
 
 # tags and parameters
 tags = ['div', 'span', 'article', 'section']
