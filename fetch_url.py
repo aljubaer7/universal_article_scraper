@@ -12,7 +12,7 @@ import pandas as pd
 import uuid
 
 import sqlite3
-conn = sqlite3.connect(r'data\metadata.db')
+conn = sqlite3.connect(r'E:\TextCorpus\saved_soup.db')
 cursor = conn.cursor()
 
 with open(r'data\headers.txt', 'r') as f:
@@ -151,7 +151,7 @@ def get_saved_soup(url):
     file_name = cursor.fetchall()
     if file_name:
         file_name = file_name[0][0]
-        path = r'saved_soups'
+        path = r'E:\TextCorpus\saved_soups'
         file_path = os.path.join(path, file_name)
         
         with open(file_path, 'r', encoding='utf-8') as f:

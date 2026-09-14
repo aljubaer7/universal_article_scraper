@@ -14,10 +14,10 @@ out_txt_file = r'E:\TextCorpus\corpus_d.txt'
 # tags and parameters
 tags = ['div', 'span', 'article', 'section']
 parameters = {
-    'min_text_lines': 6,
-    'avg_line_len': 100,
-    'min_text_length': 1000,
-    'max_line_len_p': 40,
+    'min_text_lines': 4,
+    'avg_line_len': 110,
+    'min_text_length': 1050,
+    'max_line_len_p': 45,
     'max_tdot': 3,
     'max_colon': 12,
     'max_int_txt_simi': 0.95,

@@ -114,34 +114,34 @@ class TextValidator:
     def _exclude(self, text_lines):
         return [
                     line for line in text_lines
-                    if line.strip()  # Skip empty lines
-                    and not '|' in line # exc
+                    if (text := line.lower().strip())
+                    and '|' not in line # exc
                     # Keep updated, follow The Business Standard's Google news channel
-                    and not all([i in line.lower() for i in ['follow', 'news', 'channel']])
-                    and not all([i in line.lower() for i in ['follow', 'facebook', 'instagram']])
-                    and not all([i in line.lower() for i in ['follow', 'subscribe', 'newsletter']])
-                    and not all([i in line.lower() for i in ['subscribe', 'news', 'channel']])
-                    and not all([i in line.lower() for i in ['comment', 'post', 'view']])
-                    and not all([i in line.lower() for i in ['sign up', 'news', 'channel']])
-                    and not all([i in line.lower() for i in ['sign up', 'newsletter']])
-                    and not all([i in line.lower() for i in ['click', 'download', 'app']])
-                    and not all([i in line.lower() for i in ['click', 'more', 'news']])
-                    and not all([i in line.lower() for i in ['get', 'latest', 'news']])
-                    and not all([i in line.lower() for i in ['latest', 'news', 'update']])
-                    and not all([i in line.lower() for i in ['views', 'express', 'author']])
-                    and not any([i in line.lower() for i in ['photo:', 'photo :']])
-                    and not any([i in line.lower() for i in ['writer:', 'writer :']])
-                    and not (line[0] == '(' and line[-1] == ')')
-                    and not (line[0] == '[' and line[-1] == ']')
-                    and not (line[0] == '/' and line[-1] == '/')
-                    and not any([line.lower().startswith(i) for i in ['also read', 'read more', 'tap here', 'related news', 'click here', 'advertise']])
-                    and not (line.lower().startswith('image') and line[-1] not in '.?!')
-                    and not (line.lower().startswith('getty') and line[-1] not in '.?!')
-                    and not (line.lower().startswith('most viewed') and line[-1] not in '.?!')
-                    and not (line.lower().startswith('sign in') and line[-1] not in '.?!')
-                    and not (line.lower().startswith('read') and line[-1] not in '.?!')
-                    and not (line.lower().startswith('watch') and line[-1] not in '.?!')
-                    and not (line.lower().startswith('live') and line[-1] not in '.?!')
+                    and not all([i in text for i in ['follow', 'news', 'channel']])
+                    and not all([i in text for i in ['follow', 'facebook', 'instagram']])
+                    and not all([i in text for i in ['follow', 'subscribe', 'newsletter']])
+                    and not all([i in text for i in ['subscribe', 'news', 'channel']])
+                    and not all([i in text for i in ['comment', 'post', 'view']])
+                    and not all([i in text for i in ['sign up', 'news', 'channel']])
+                    and not all([i in text for i in ['sign up', 'newsletter']])
+                    and not all([i in text for i in ['click', 'download', 'app']])
+                    and not all([i in text for i in ['click', 'more', 'news']])
+                    and not all([i in text for i in ['get', 'latest', 'news']])
+                    and not all([i in text for i in ['latest', 'news', 'update']])
+                    and not all([i in text for i in ['views', 'express', 'author']])
+                    and not any([i in text for i in ['photo:', 'photo :']])
+                    and not any([i in text for i in ['writer:', 'writer :']])
+                    and not (text[0] == '(' and text[-1] == ')')
+                    and not (text[0] == '[' and text[-1] == ']')
+                    and not (text[0] == '/' and text[-1] == '/')
+                    and not any([text.startswith(i) for i in ['also read', 'read more', 'tap here', 'related news', 'click here', 'advertise']])
+                    and not (text.startswith('image') and line[-1] not in '.?!')
+                    and not (text.startswith('getty') and line[-1] not in '.?!')
+                    and not (text.startswith('most viewed') and line[-1] not in '.?!')
+                    and not (text.startswith('sign in') and line[-1] not in '.?!')
+                    and not (text.startswith('read') and line[-1] not in '.?!')
+                    and not (text.startswith('watch') and line[-1] not in '.?!')
+                    and not (text.startswith('live') and line[-1] not in '.?!')
                 ]
     def _replace(self, text_lines) -> list:
         return [line.replace("\'", "′") for line in text_lines]
@@ -237,49 +237,17 @@ class TextValidator:
         return statistics.mean(scores)
     
 
-# class > SearchByArticle
-class SearchByArticle:
-    def __init__(self, soup, tag='article', parameters=dflt_parameters):
+# soup to text lines
+class SoupToTextlines:
+    def __init__(self, soup, parameters=dflt_parameters):
         self.soup = soup
-        self.tag = tag
         self.parameters = parameters
 
-    def get_article_text(self):
-        tags = list({tag.name for tag in self.soup.find_all()})
-        if self.tag in tags:
-            html_content = self.soup.find(self.tag)
-            text_content = [item.text.strip() for item in html_content if item.text.strip()]
-            text_lines = [' '.join(line.split()) for line in text_content if line and len(line) > 1]
-
-            # filter text_lines
-            validator = TextValidator()
-            text_lines = validator.filter_text_lines(text_lines)
-            text_lines = validator.exc_conc_words(text_lines)
-            
-            if validator.is_valid(text_lines):
-
-                sentence_score = validator.sentence_score(text_lines)
-                if sentence_score > self.parameters['min_sent_score']:
-                    metadata = {'tag': self.tag, 'attribute': 'n/a'}
-                    metadata.update(validator.create_metadata(text_lines))
-                    metadata.update({'sentence_score': sentence_score})
-                    df = pd.DataFrame([metadata])
-                    return text_lines, df
-        return None, None
-    
-
-# class > SearchAttributes
-class SearchByAttributes:
-    def __init__(self, soup, tags: list, parameters=dflt_parameters):
-        self.soup = soup
-        self.tags = tags
-        self.parameters = parameters
-
-    def get_attributes(self):
+    def get_attributes(self, tags):
         '''Get all attributes within the soup and given tag list.'''
         if self.soup:
             all_attributes = []
-            for tag in self.tags:
+            for tag in tags:
                 attributes = [tags.attrs for tags in self.soup.find_all(tag) if tags.attrs]
                 all_attributes.extend(attributes)
             seen = set()
@@ -306,53 +274,65 @@ class SearchByAttributes:
     def _is_text(self, text):
         return bool(len(re.findall(r'[a-zA-Z,.?!]', text)) > 0)
     
-    def get_textLines(self, tag, attribute, filter=True):
+    def get_textLines(self, tag, attribute=None, exclude=True):
         '''Get text lines as list from given single tag and single attribute'''
-        html_content = self.soup.find(tag, attribute)
+        html_content = self.soup.find(tag, attribute) if attribute else self.soup.find(tag)
         if html_content:
             all_lines = [c.text.replace('\n', '') for c in html_content]
             text_lines = [line for line in all_lines if self._is_text(line) and '\t' not in line]
 
-            if filter:
+            if exclude:
                 validator = TextValidator(self.parameters)
                 text_lines = validator.filter_text_lines(text_lines)
                 text_lines = validator.join_broken_lines(text_lines)
                 text_lines = validator.exc_conc_words(text_lines)
                 text_lines = [' '.join(line.split()) for line in text_lines]
+                return text_lines
             return text_lines
 
-    # prevent same text processing multiple times by calculating similarity
-    def vector_similarity(self, text_lines, text_vector):
-        all_text = self.soup.get_text(strip=True).lower()
-        all_words = list(dict.fromkeys(re.sub(r"[,.?;:'!()-]", '', all_text).split()))
 
-        text = ' '.join(text_lines).lower()
-        words = re.sub(r"[,.?;:'!()-]", '', text).split()
-        words_dict = Counter(words)
-        x = [words_dict.get(word, 0) for word in all_words] # current text matrix.
+# class > SearchByArticle
+class SearchByArticle:
+    def __init__(self, soup, tag='article', parameters=dflt_parameters):
+        self.soup = soup
+        self.tag = tag
+        self.parameters = parameters
 
-        similarities = []
-        for i in range(len(text_vector)):
-            y = text_vector[i]
-            dot_product = np.dot(x, y)
-            norm_x = np.linalg.norm(x)
-            norm_y = np.linalg.norm(y)
-            norm_xy = norm_x * norm_y
-            if norm_xy > 0:
-                similarity = dot_product / norm_xy
-                similarities.append(similarity)
-        text_vector.append(x)
-        max_simi = max(similarities) if similarities else 0
-        return max_simi
-        
+    def get_article_text(self):
+        tags = list({tag.name for tag in self.soup.find_all()})
+        if self.tag in tags:
+            parser = SoupToTextlines(self.soup, self.parameters)
+            validator = TextValidator(self.parameters)
+            text_lines = parser.get_textLines(self.tag)
+            
+            if validator.is_valid(text_lines):
+                sentence_score = validator.sentence_score(text_lines)
+                if sentence_score > self.parameters['min_sent_score']:
+                    metadata = {'tag': self.tag, 'attribute': 'n/a'}
+                    metadata.update(validator.create_metadata(text_lines))
+                    metadata.update({'sentence_score': sentence_score})
+                    df = pd.DataFrame([metadata])
+                    return text_lines, df
+        return None, None
+    
+
+# class > SearchAttributes
+class SearchByAttributes:
+    def __init__(self, soup, tags: list, parameters=dflt_parameters):
+        self.soup = soup
+        self.tags = tags
+        self.parameters = parameters
+
     def loop_attributes(self):
         df = pd.DataFrame()
-        attributes: list = self.get_attributes()
+
+        parser = SoupToTextlines(self.soup, self.parameters)
+        attributes: list = parser.get_attributes(self.tags)
         validator = TextValidator(self.parameters)
 
         for item in attributes:
             for tag in self.tags:
-                text_lines: list = self.get_textLines(tag, item)
+                text_lines: list = parser.get_textLines(tag, item)
 
                 if validator.is_valid(text_lines):
                     # sentence scoring
@@ -368,7 +348,7 @@ class SearchByAttributes:
             df = df.sort_values(by='sentence_score', ascending=False, ignore_index=True)
             tag = df.tag.iloc[0]
             attribute = df.attribute.iloc[0]
-            text_lines = self.get_textLines(tag, attribute)
+            text_lines = parser.get_textLines(tag, attribute)
             return text_lines, df
         return None, None
 
@@ -399,3 +379,26 @@ def save_text(url, title, text_lines, df, txt_file, sql=False):
         sql.to_sql(table_name, conn, if_exists='append', index=False)
         conn.commit()
 
+# prevent same text processing multiple times by calculating similarity
+def vector_similarity(self, text_lines, text_vector):
+    all_text = self.soup.get_text(strip=True).lower()
+    all_words = list(dict.fromkeys(re.sub(r"[,.?;:'!()-]", '', all_text).split()))
+
+    text = ' '.join(text_lines).lower()
+    words = re.sub(r"[,.?;:'!()-]", '', text).split()
+    words_dict = Counter(words)
+    x = [words_dict.get(word, 0) for word in all_words] # current text matrix.
+
+    similarities = []
+    for i in range(len(text_vector)):
+        y = text_vector[i]
+        dot_product = np.dot(x, y)
+        norm_x = np.linalg.norm(x)
+        norm_y = np.linalg.norm(y)
+        norm_xy = norm_x * norm_y
+        if norm_xy > 0:
+            similarity = dot_product / norm_xy
+            similarities.append(similarity)
+    text_vector.append(x)
+    max_simi = max(similarities) if similarities else 0
+    return max_simi

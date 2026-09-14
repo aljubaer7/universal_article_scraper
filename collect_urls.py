@@ -107,12 +107,12 @@ class CollectUrls:
 
         # filter by category
         if follow_category:
-            if len(slu) < max_url:
+            if len(slu) <= max_url:
                 return slu
             elif len(slu) > max_url:
                 category = [p for p in parsed.path.split('/') if p]
                 ctg_slu = [u for u in slu if any([f'/{c}/' in u for c in category])] if category else slu
-                if len(ctg_slu) > max_url:
+                if len(ctg_slu) >= max_url:
                     return ctg_slu[:max_url]
                 elif len(ctg_slu) < max_url:
                     non_cat = [u for u in slu if u not in ctg_slu]
