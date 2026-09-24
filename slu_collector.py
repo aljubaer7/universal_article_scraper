@@ -20,7 +20,7 @@ print(f'{datetime.now():%d.%m.%yT%H:%M:%S} INFO:  {len(first_level_urls)} first-
 ic = 0
 for url in first_level_urls:
     soup = fetcher.get_soup(url)
-    slu = collector.get_slurl(url, soup)
+    slu = collector.get_slurl(url, soup, max_url=30)
     if slu:
         with open(out_txt_file, 'a', encoding='utf-8') as f:
             f.writelines(f'{item}\n' for item in slu)

@@ -4,16 +4,13 @@ import json
 import statistics
 import unicodedata
 from datetime import datetime
-
-# pronouns & prepositions
-with open(r'data\pnoun_prep.txt', 'r') as f:
-    pnoun_preps = [item.strip().lower() for item in f]
-
 import sqlite3
 conn = sqlite3.connect(r'data\metadata.db')
 
-
-dflt_parameters = { # default parameters
+# pronouns & prepositions
+pnoun_preps = open(r'data\pnoun_prep.txt', 'r', encoding='utf-8').read().lower().split()
+# default parameters
+dflt_parameters = { 
     'min_text_lines': 4,
     'avg_line_len': 80,
     'min_text_length': 1000,
@@ -28,6 +25,7 @@ dflt_parameters = { # default parameters
 
 # class > TextValidator
 class TextValidator:
+    
     def __init__(self, parameters=dflt_parameters):
         self.parameters = parameters
 
@@ -272,8 +270,8 @@ class SearchByArticle:
             
             if validator.is_valid(text_lines):
                 sentence_score = validator.sentence_score(text_lines)
-                if sentence_score > self.parameters['min_sent_score']:
 
+                if sentence_score > self.parameters['min_sent_score']:
                     metadata = {'tag': self.tag, 'attribute': 'n/a'}
                     metadata.update(validator.create_metadata(text_lines))
                     metadata.update({'sentence_score': sentence_score})

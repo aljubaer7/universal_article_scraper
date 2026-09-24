@@ -43,7 +43,7 @@ print(f'{datetime.now():%d.%m.%yT%H:%M:%S} INFO:  {len(sec_level_url)} unique ur
 # main loop
 ic = 0
 error = 0
-visited = 0
+passed = 0
 
 for url in sec_level_url:
     soup = fetcher.getbybs(url)
@@ -58,13 +58,14 @@ for url in sec_level_url:
             text_lines, df = article.get_article_text()
             if text_lines:
                 pr.save_text(url, title, text_lines, df, out_txt_file)
+                passed += 1
             else:
                 text = pr.SearchByAttributes(soup, tags, parameters=parameters)
                 text_lines, df = text.loop_attributes()
                 if text_lines:
                     pr.save_text(url, title, text_lines, df, out_txt_file)
-                # end process----------------------------------------------------/
-                visited += 1
+                    # end process----------------------------------------------------/
+                    passed += 1
 
         with open(r'data\visited_urls.txt', 'a', encoding='utf-8') as f:
             f.write(f'{url}\n')
@@ -73,4 +74,4 @@ for url in sec_level_url:
         print(f'\n{datetime.now():%d.%m.%yT%H:%M:%S} INFO:  5 consecutive errors!!')
         break
     ic += 1
-    print(f'\r{datetime.now():%d.%m.%yT%H:%M:%S} INFO:  Visiting urls {ic}/{len(sec_level_url)}. Success rate {round((visited/ic)*100, 1)}%', end='')
+    print(f'\r{datetime.now():%d.%m.%yT%H:%M:%S} INFO:  Visiting urls {ic}/{len(sec_level_url)}. Success rate {round((passed/ic)*100, 1)}%', end='')

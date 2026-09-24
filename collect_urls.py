@@ -105,6 +105,8 @@ class CollectUrls:
             if 'article' in tail or tail.count('-') > 3:
                 slu.append(url)
 
+        # check by <a>text
+
         # filter by category
         if follow_category:
             if len(slu) <= max_url:
@@ -116,7 +118,7 @@ class CollectUrls:
                     return ctg_slu[:max_url]
                 elif len(ctg_slu) < max_url:
                     non_cat = [u for u in slu if u not in ctg_slu]
-                    short = 25 - len(ctg_slu)
+                    short = max_url - len(ctg_slu)
                     return ctg_slu + non_cat[:short]
         return slu
         
