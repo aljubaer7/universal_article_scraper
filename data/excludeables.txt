@@ -30,6 +30,7 @@ youtube.com
 /?share
 /about
 /advertise
+/advertising
 /advertisement
 /api
 /apps
@@ -62,6 +63,7 @@ youtube.com
 /livestory/
 /live-story/
 /newsletter
+/page
 /photo
 /podcast
 /podcast/
@@ -70,9 +72,11 @@ youtube.com
 /share
 /shorts
 /sitemap
+/sponsor
 /subscribe
 /subscription
 /terms
+/topic
 /user
 /video
 /video/

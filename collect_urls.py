@@ -7,6 +7,27 @@ with open(r'data\excludeables.txt', 'r') as f: # excludeable domains
 
 class CollectUrls:
 
+    def is_valid_url(self, base_url: str, url: str) -> bool:
+        """
+        Check whether a single URL is a valid internal link.
+        Input: A single url and the base url
+        Output: True if the url passes all checks, else False
+        """
+        # Not a URL
+        if urlparse(url).scheme not in ("http", "https"):
+            return False
+        # Exclude base URL
+        if url.rstrip("/") == base_url.rstrip("/"):
+            return False
+        # Exclude from the given list, eg. social-media pages, terms and condition pages
+        if any(link in url for link in excludeables):
+            return False
+        # Exclude external domains
+        base_domain = urlparse(base_url).netloc.removeprefix("www.")
+        url_domain = urlparse(url).netloc.removeprefix("www.")
+
+        return base_domain == url_domain
+
     def filter_urls(self, base_url: str, raw_urls: list) -> list:
         """
         Filter raw URLs to keep only valid internal links.
@@ -88,30 +109,31 @@ class CollectUrls:
         return []
     
 
-    def get_slurl(self, url: str, soup, follow_category=True, max_url=25) -> list: # get second level url
+    def get_slurl(self, flu: str, soup, follow_category=True, max_url=25) -> list: # get second level url
         '''
         Returns second-level category urls followed by same domain.
         '''
-        # get base-url
-        parsed = urlparse(url)
-        base_url = f'{parsed.scheme}://{parsed.netloc}'
-        all_urls = self.get_urls(base_url, soup) # get all available urls
-        # remove query
-        all_urls = [url.split('?')[0] for url in all_urls]
+        # get valid urls with title
+        urls = {}
+        for i in soup.find_all('a'):
+            title = ' '.join(i.text.strip().replace('\n', ' ').split())
+            url = urljoin(flu, i.get('href'))
+            if self.is_valid_url(flu, url):
+                urls[url] = title
 
+        # filter by title and url-tail
         slu = []
-        for url in all_urls:
-            tail = '/'.join(url.rstrip('/').split('/')[3:])
-            if 'article' in tail or tail.count('-') > 3:
+        for url, title in urls.items():
+            hyp_cnt = max(urlparse(url).path.split('/'), key=len).count('-')
+            if hyp_cnt > 4 or len(title) > 35:
                 slu.append(url)
-
-        # check by <a>text
-
+        
         # filter by category
         if follow_category:
             if len(slu) <= max_url:
                 return slu
             elif len(slu) > max_url:
+                parsed = urlparse(flu)
                 category = [p for p in parsed.path.split('/') if p]
                 ctg_slu = [u for u in slu if any([f'/{c}/' in u for c in category])] if category else slu
                 if len(ctg_slu) >= max_url:
