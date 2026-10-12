@@ -3,6 +3,7 @@ import uuid
 import json
 import statistics
 import unicodedata
+from bs4 import Tag
 from datetime import datetime
 import sqlite3
 conn = sqlite3.connect(r'data\metadata.db')
@@ -209,6 +210,8 @@ class TextValidator:
 class SoupToTextlines:
     def __init__(self, soup, parameters=dflt_parameters):
         self.soup = soup
+        # for tag in self.soup.find_all(['li', 'span', 'a', 'em', 'strong']):
+        #     tag.replace_with(tag.text.strip())
         self.parameters = parameters
 
     def get_attributes(self, tags):
@@ -245,8 +248,15 @@ class SoupToTextlines:
     def get_textLines(self, tag, attribute=None, exclude=True):
         '''Get text lines as list from given single tag and single attribute'''
         html_content = self.soup.find(tag, attribute) if attribute else self.soup.find(tag)
+
         if html_content:
-            all_lines = [c.get_text(' ').replace('\n', '') for c in html_content]
+            BLOCK  = ['li', 'h1', 'h2', 'h3', 'h4', 'br', 'em', 'span', 'blockquote', 'figcaption']
+            for t in reversed(html_content.find_all(BLOCK)):
+                if t.parent is html_content:
+                    continue
+                t.replace_with(f' {t.get_text()} ')
+
+            all_lines = [c.get_text().replace('\n', ' ') for c in html_content]
             text_lines = [line for line in all_lines if self._is_text(line) and '\t' not in line]
 
             if exclude:
@@ -325,16 +335,12 @@ class SearchByAttributes:
 # def > save_text(url, title, text_lines, df, text_file, sql=False)
 def save_text(url, title, text_lines, df, txt_file, sql=False):
     uid = f'{datetime.now():D%d%m%yT%H%M%S}_{uuid.uuid4().hex}'
-    # category = ', '.join([item for item in url.rstrip('/').split('/')[3:-1] if not item.isdecimal()])
-
     
     with open(txt_file, 'a', encoding='utf-8') as f:
         f.write(f'id: {uid}\n')
         f.write(f'url: {url}\n')
-        # f.write(f'category: {category}\n')
         f.write(f'title: {title}\n')
         f.writelines(f'{line}\n' for line in text_lines)
-        # f.write(f'body: {text}\n')
         f.write('\n')
     if sql:
         table_name = f'{txt_file.split("\\")[1].split('.')[0]}_metadata'

@@ -157,6 +157,8 @@ def get_saved_soup(url):
         with open(file_path, 'r', encoding='utf-8') as f:
             html_content = f.read()
         soup = BeautifulSoup(html_content, 'lxml')
+        for tag in soup(avoid_tags):
+            tag.decompose()
         return soup
     else:
         return None
