@@ -71,9 +71,9 @@ class TextValidator:
             line = re.sub(r'[‐‑‒–—―]', '-', line)
             line = re.sub(r'[‘’′]', "'", line)
             line = re.sub(r'[″❝❞“”]', '"', line)
-            line = line.replace('\xa0', ' ')
+            line = line.replace('\xa0', ' ').replace('…', '.').replace("\'", "′")
+            line = line.replace(' , ', ', ').replace(' . ', '. ').replace(' ! ', '! ').replace(' ? ', '? ')
             line = re.sub(r'[^ -~]', '', line)
-            # line = ' '.join(line.split())
             result.append(line)
         return result
     def _exclude(self, text_lines):
@@ -109,12 +109,16 @@ class TextValidator:
                     and not (text.startswith('live') and line[-1] not in '.?!')
                 ]
     def _replace(self, text_lines) -> list:
-        return [line.replace("\'", "′") for line in text_lines]
+        text_lines = [
+            line.replace(' , ', ', ').replace(' . ', '. ').replace(' ! ', '! ').replace(' ? ', '? ')
+            for line in text_lines
+        ]
+        return text_lines
     def filter_text_lines(self, text_lines) -> list:
         t_lines = list(dict.fromkeys(text_lines))
         t_lines = self._character_maping(t_lines)
         t_lines = self._exclude(t_lines)
-        t_lines = self._replace(t_lines)
+        # t_lines = self._replace(t_lines)
         return t_lines
 
     # exclude concatenated words
@@ -161,10 +165,10 @@ class TextValidator:
                     result.append(previous_line)
                     previous_line = current_line
                 else:
-                    if not self._ending_space(previous_line):
-                        previous_line = previous_line + ' ' + current_line
-                    else:
+                    if not self._ending_space(previous_line) or not self._starting_space(current_line):
                         previous_line = previous_line + current_line
+                    else:
+                        previous_line = previous_line + ' ' + current_line
             result.append(current_line)
             return result
         return text_lines
@@ -210,8 +214,6 @@ class TextValidator:
 class SoupToTextlines:
     def __init__(self, soup, parameters=dflt_parameters):
         self.soup = soup
-        # for tag in self.soup.find_all(['li', 'span', 'a', 'em', 'strong']):
-        #     tag.replace_with(tag.text.strip())
         self.parameters = parameters
 
     def get_attributes(self, tags):
@@ -250,19 +252,15 @@ class SoupToTextlines:
         html_content = self.soup.find(tag, attribute) if attribute else self.soup.find(tag)
 
         if html_content:
-            BLOCK  = ['li', 'h1', 'h2', 'h3', 'h4', 'br', 'em', 'span', 'blockquote', 'figcaption']
-            for t in reversed(html_content.find_all(BLOCK)):
-                if t.parent is html_content:
-                    continue
-                t.replace_with(f' {t.get_text()} ')
-
-            all_lines = [c.get_text().replace('\n', ' ') for c in html_content]
-            text_lines = [line for line in all_lines if self._is_text(line) and '\t' not in line]
+            all_lines = [c.get_text('\n') for c in html_content]
+            lines = [l.split('\n') for l in all_lines if l]
+            text_lines = [i for innrelist in lines for i in innrelist]
+            text_lines = [line for line in text_lines if self._is_text(line) and '\t' not in line]
 
             if exclude:
                 validator = TextValidator(self.parameters)
-                text_lines = validator.filter_text_lines(text_lines)
                 text_lines = validator.join_broken_lines(text_lines)
+                text_lines = validator.filter_text_lines(text_lines)
                 text_lines = validator.exc_conc_words(text_lines)
                 text_lines = [' '.join(line.split()) for line in text_lines]
                 return text_lines
