@@ -9,7 +9,7 @@ fetcher = fetch_url.UrlFetcher()
 # input-url text-file name
 in_text_file = r'data\second_level_urls.txt'
 # output text-file name
-out_txt_file = r'E:\TextCorpus\corpus_e.txt'
+out_txt_file = r'E:\TextCorpus\corpus_f.txt'
 
 # tags and parameters
 tags = ['div', 'span', 'article', 'section']
@@ -52,21 +52,21 @@ for url in sec_level_url:
     else:
         error = 0
         if soup.title:
+            title = soup.title.text.strip().split('|')[0].split(' - ')[0].strip()
             # main process----------------------------------------------------/
-            title = soup.title.text.strip().split('|')[0].strip()
-            article = pr.SearchByArticle(soup, parameters=parameters)
-            text_lines, df = article.get_article_text()
+            text = pr.SearchByAttributes(soup, tags, parameters=parameters)
+            text_lines, df = text.loop_attributes()
             if text_lines:
                 pr.save_text(url, title, text_lines, df, out_txt_file)
                 passed += 1
             else:
-                text = pr.SearchByAttributes(soup, tags, parameters=parameters)
-                text_lines, df = text.loop_attributes()
+                article = pr.SearchByArticle(soup, parameters=parameters)
+                text_lines, df = article.get_article_text()
                 if text_lines:
                     pr.save_text(url, title, text_lines, df, out_txt_file)
-                    # end process----------------------------------------------------/
                     passed += 1
-
+            # end process----------------------------------------------------/
+                    
         with open(r'data\visited_urls.txt', 'a', encoding='utf-8') as f:
             f.write(f'{url}\n')
                 

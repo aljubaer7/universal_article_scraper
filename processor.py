@@ -73,7 +73,7 @@ class TextValidator:
             line = re.sub(r'[″❝❞“”]', '"', line)
             line = line.replace('\xa0', ' ').replace('…', '.').replace("\'", "′")
             line = line.replace(' , ', ', ').replace(' . ', '. ').replace(' ! ', '! ').replace(' ? ', '? ')
-            line = re.sub(r'[^ -~]', '', line)
+            # line = re.sub(r'[^ -~]', '', line)
             result.append(line)
         return result
     def _exclude(self, text_lines):
